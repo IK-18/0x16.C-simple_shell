@@ -138,7 +138,7 @@ int run_args(char **args, char **front, int *exe_ret)
  */
 int handle_args(int *exe_ret)
 {
-	int ret = 0, index;
+	int ret = 0, index = 0;
 	char **args, *line = NULL, **front;
 
 	line = get_args(line, exe_ret);
@@ -157,7 +157,7 @@ int handle_args(int *exe_ret)
 	}
 	front = args;
 
-	for (index = 0; args[index]; index++)
+	while (args[index])
 	{
 		if (_strncmp(args[index], ";", 1) == 0)
 		{
@@ -167,6 +167,7 @@ int handle_args(int *exe_ret)
 			args = &args[++index];
 			index = 0;
 		}
+		index++;
 	}
 	if (args)
 		ret = call_args(args, front, exe_ret);
@@ -184,10 +185,10 @@ int handle_args(int *exe_ret)
  */
 int check_args(char **args)
 {
-	size_t i;
+	size_t i = 0;
 	char *cur, *nex;
 
-	for (i = 0; args[i]; i++)
+	while (args[i])
 	{
 		cur = args[i];
 		if (cur[0] == ';' || cur[0] == '&' || cur[0] == '|')
@@ -198,6 +199,7 @@ int check_args(char **args)
 			if (nex && (nex[0] == ';' || nex[0] == '&' || nex[0] == '|'))
 				return (create_error(&args[i + 1], 2));
 		}
+		i++;
 	}
 	return (0);
 }
