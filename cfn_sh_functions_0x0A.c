@@ -1,168 +1,100 @@
 #include "shell.h"
 
 /**
- * cfn_sh_env - Prints the current environment.
- * @args: An array of arguments passed to the shell.
- * @front: A double pointer to the beginning of args.
+ * _strchr - Locates a character in a string.
+ * @s: The string to be searched.
+ * @c: The character to be located.
  *
- * Return: If an error occurs - -1.
- *	   Otherwise - 0.
- *
- * Description: Prints one variable per line in the
- *              format 'variable'='value'.
+ * Return: If c is found - a pointer to the first occurence.
+ *         If c is not found - NULL.
  */
-int cfn_sh_env(char **args, char __attribute__((__unused__)) **front)
+char *_strchr(char *s, char c)
 {
 	int index;
-	char nc = '\n';
 
-	if (!environ)
-		return (-1);
-
-	for (index = 0; environ[index]; index++)
+	for (index = 0; s[index]; index++)
 	{
-		write(STDOUT_FILENO, environ[index], _strlen(environ[index]));
-		write(STDOUT_FILENO, &nc, 1);
+		if (s[index] == c)
+			return (s + index);
 	}
 
-	(void)args;
-	return (0);
+	return (NULL);
 }
 
 /**
- * cfn_sh_setenv - Changes or adds an environmental variable to the PATH.
- * @args: An array of arguments passed to the shell.
- * @front: A double pointer to the beginning of args.
- * Description: args[1] is the name of the new or existing PATH variable.
- *              args[2] is the value to set the new or changed variable to.
+ * _strspn - Gets the length of a prefix substring.
+ * @s: The string to be searched.
+ * @accept: The prefix to be measured.
  *
- * Return: If an error occurs - -1.
- *         Otherwise - 0.
+ * Return: The number of bytes in s which
+ *         consist only of bytes from accept.
  */
-int cfn_sh_setenv(char **args, char __attribute__((__unused__)) **front)
+int _strspn(char *s, char *accept)
 {
-	char **env_var = NULL, **new_environ, *new_value;
-	size_t size;
+	int bytes = 0;
 	int index;
 
-	if (!args[0] || !args[1])
-		return (create_err(args, -1));
-
-	new_value = malloc(_strlen(args[0]) + 1 + _strlen(args[1]) + 1);
-	if (!new_value)
-		return (create_err(args, -1));
-	_strcpy(new_value, args[0]);
-	_strcat(new_value, "=");
-	_strcat(new_value, args[1]);
-
-	env_var = _getenv(args[0]);
-	if (env_var)
+	while (*s)
 	{
-		free(*env_var);
-		*env_var = new_value;
-		return (0);
-	}
-	for (size = 0; environ[size]; size++)
-		;
-
-	new_environ = malloc(sizeof(char *) * (size + 2));
-	if (!new_environ)
-	{
-		free(new_value);
-		return (create_err(args, -1));
-	}
-
-	for (index = 0; environ[index]; index++)
-		new_environ[index] = environ[index];
-
-	free(environ);
-	environ = new_environ;
-	environ[index] = new_value;
-	environ[index + 1] = NULL;
-
-	return (0);
-}
-
-/**
- * cfn_sh_unsetenv - Deletes an environmental variable from the PATH.
- * @args: An array of arguments passed to the shell.
- * @front: A double pointer to the beginning of args.
- * Description: args[1] is the PATH variable to remove.
- *
- * Return: If an error occurs - -1.
- *         Otherwise - 0.
- */
-int cfn_sh_unsetenv(char **args, char __attribute__((__unused__)) **front)
-{
-	char **env_var, **new_environ;
-	size_t size;
-	int index, index2;
-
-	if (!args[0])
-		return (create_err(args, -1));
-	env_var = _getenv(args[0]);
-	if (!env_var)
-		return (0);
-
-	for (size = 0; environ[size]; size++)
-		;
-
-	new_environ = malloc(sizeof(char *) * size);
-	if (!new_environ)
-		return (create_err(args, -1));
-
-	for (index = 0, index2 = 0; environ[index]; index++)
-	{
-		if (*env_var == environ[index])
+		for (index = 0; accept[index]; index++)
 		{
-			free(*env_var);
-			continue;
+			if (*s == accept[index])
+			{
+				bytes++;
+				break;
+			}
 		}
-		new_environ[index2] = environ[index];
-		index2++;
+		s++;
 	}
-	free(environ);
-	environ = new_environ;
-	environ[size - 1] = NULL;
+	return (bytes);
+}
+
+/**
+ * _strcmp - Compares two strings.
+ * @s1: The first string to be compared.
+ * @s2: The second string to be compared.
+ *
+ * Return: Positive byte difference if s1 > s2
+ *         0 if s1 = s2
+ *         Negative byte difference if s1 < s2
+ */
+int _strcmp(char *s1, char *s2)
+{
+	while (*s1 && *s2 && *s1 == *s2)
+	{
+		s1++;
+		s2++;
+	}
+
+	if (*s1 != *s2)
+		return (*s1 - *s2);
 
 	return (0);
 }
 
 /**
- * env_help - Displays information on the cfn_sh builtin command 'env'.
+ * _strncmp - Compare two strings.
+ * @s1: Pointer to a string.
+ * @s2: Pointer to a string.
+ * @n: The first n bytes of the strings to compare.
+ *
+ * Return: Less than 0 if s1 is shorter than s2.
+ *         0 if s1 and s2 match.
+ *         Greater than 0 if s1 is longer than s2.
  */
-void env_help(void)
+int _strncmp(const char *s1, const char *s2, size_t n)
 {
-	char *msg = "env: env\n\tPrints the current environment.\n";
+	size_t i;
 
-	write(STDOUT_FILENO, msg, _strlen(msg));
-}
-
-/**
- * help_set_env - Displays information on the cfn_sh builtin command 'setenv'.
- */
-void help_set_env(void)
-{
-	char *msg = "setenv: setenv [VARIABLE] [VALUE]\n\tInitializes a new";
-
-	write(STDOUT_FILENO, msg, _strlen(msg));
-	msg = "environment variable, or modifies an existing one.\n\n";
-	write(STDOUT_FILENO, msg, _strlen(msg));
-	msg = "\tUpon failure, prints a message to stderr.\n";
-	write(STDOUT_FILENO, msg, _strlen(msg));
-}
-
-/**
- * help_unset_env - Displays information on the cfn_sh builtin command
- * 'unsetenv'.
- */
-void help_unset_env(void)
-{
-	char *msg = "unsetenv: unsetenv [VARIABLE]\n\tRemoves an ";
-
-	write(STDOUT_FILENO, msg, _strlen(msg));
-	msg = "environmental variable.\n\n\tUpon failure, prints a ";
-	write(STDOUT_FILENO, msg, _strlen(msg));
-	msg = "message to stderr.\n";
-	write(STDOUT_FILENO, msg, _strlen(msg));
+	for (i = 0; s1[i] && s2[i] && i < n; i++)
+	{
+		if (s1[i] > s2[i])
+			return (s1[i] - s2[i]);
+		else if (s1[i] < s2[i])
+			return (s1[i] - s2[i]);
+	}
+	if (i == n)
+		return (0);
+	else
+		return (-15);
 }

@@ -1,203 +1,264 @@
 #include "shell.h"
 
 /**
- * get_location - Locates command in PATH.
- * @command: command to locate.
+ * handle_line - Partitions a line read from standard input as needed.
+ * @line: A pointer to a line read from standard input.
+ * @read: The length of line.
  *
- * Return: If an error  - NULL.otherwiseise - the full pathname of the command.
+ * Description: Spaces are inserted to separate ";", "||", and "&&".
+ *              Replaces "#" with '\0'.
  */
-char *get_location(char *command)
+void handle_line(char **line, ssize_t read)
 {
-	char **path, *temp;
-	list_t *dirs, *head;
-	struct stat st;
+	char *old_line, *new_line;
+	char previous, current, next;
+	size_t i, j;
+	ssize_t new_len;
 
-	path = _getenv("PATH");
-	if (!path || !(*path))
-		return (NULL);
-
-	dirs = get_path_dir(*path + 5);
-	head = dirs;
-
-	while (dirs)
+	new_len = get_new_len(*line);
+	if (new_len == read - 1)
+		return;
+	new_line = malloc(new_len + 1);
+	if (!new_line)
+		return;
+	j = 0;
+	old_line = *line;
+	for (i = 0; old_line[i]; i++)
 	{
-		temp = malloc(_strlen(dirs->dir) + _strlen(command) + 2);
-		if (!temp)
-			return (NULL);
-
-		_strcpy(temp, dirs->dir);
-		_strcat(temp, "/");
-		_strcat(temp, command);
-
-		if (stat(temp, &st) == 0)
+		current = old_line[i];
+		next = old_line[i + 1];
+		if (i != 0)
 		{
-			free_list(head);
-			return (temp);
-		}
-
-		dirs = dirs->next;
-		free(temp);
-	}
-
-	free_list(head);
-
-	return (NULL);
-}
-
-/**
- * fill_path_dir - Copys path but with any leading/sandwiched/trailing path.
- * @path: separated list of directories.
- *
- * Return: A copy of path.
- */
-char *fill_path_dir(char *path)
-{
-	int i, length = 0;
-	char *path_copy, *pwd;
-
-	pwd = *(_getenv("PWD")) + 4;
-	for (i = 0; path[i]; i++)
-	{
-		if (path[i] == ':')
-		{
-			if (path[i + 1] == ':' || i == 0 || path[i + 1] == '\0')
-				length += _strlen(pwd) + 1;
-			else
-				length++;
-		}
-		else
-			length++;
-	}
-	path_copy = malloc(sizeof(char) * (length + 1));
-	if (!path_copy)
-		return (NULL);
-	path_copy[0] = '\0';
-	for (i = 0; path[i]; i++)
-	{
-		if (path[i] == ':')
-		{
-			if (i == 0)
+			previous = old_line[i - 1];
+			if (current == ';')
 			{
-				_strcat(path_copy, pwd);
-				_strcat(path_copy, ":");
+				if (next == ';' && previous != ' ' && previous != ';')
+				{
+					new_line[j++] = ' ';
+					new_line[j++] = ';';
+					continue;
+				}
+				else if (previous == ';' && next != ' ')
+				{
+					new_line[j++] = ';';
+					new_line[j++] = ' ';
+					continue;
+				}
+				if (previous != ' ')
+					new_line[j++] = ' ';
+				new_line[j++] = ';';
+				if (next != ' ')
+					new_line[j++] = ' ';
+				continue;
 			}
-			else if (path[i + 1] == ':' || path[i + 1] == '\0')
+			else if (current == '&')
 			{
-				_strcat(path_copy, ":");
-				_strcat(path_copy, pwd);
+				if (next == '&' && previous != ' ')
+					new_line[j++] = ' ';
+				else if (previous == '&' && next != ' ')
+				{
+					new_line[j++] = '&';
+					new_line[j++] = ' ';
+					continue;
+				}
+			}
+			else if (current == '|')
+			{
+				if (next == '|' && previous != ' ')
+					new_line[j++]  = ' ';
+				else if (previous == '|' && next != ' ')
+				{
+					new_line[j++] = '|';
+					new_line[j++] = ' ';
+					continue;
+				}
+			}
+		}
+		else if (current == ';')
+		{
+			if (i != 0 && old_line[i - 1] != ' ')
+				new_line[j++] = ' ';
+			new_line[j++] = ';';
+			if (next != ' ' && next != ';')
+				new_line[j++] = ' ';
+			continue;
+		}
+		new_line[j++] = old_line[i];
+	}
+	new_line[j] = '\0';
+
+	free(*line);
+	*line = new_line;
+}
+
+/**
+ * get_new_len - Gets the new length of a line partitioned
+ *               by ";", "||", "&&&", or "#".
+ * @line: The line to check.
+ *
+ * Return: The new length of the line.
+ *
+ * Description: Cuts short lines containing '#' comments with '\0'.
+ */
+
+ssize_t get_new_len(char *line)
+{
+	size_t i;
+	ssize_t new_len = 0;
+	char current, next;
+
+	for (i = 0; line[i]; i++)
+	{
+		current = line[i];
+		next = line[i + 1];
+		if (current == '#')
+		{
+			if (i == 0 || line[i - 1] == ' ')
+			{
+				line[i] = '\0';
+				break;
+			}
+		}
+		else if (i != 0)
+		{
+			if (current == ';')
+			{
+				if (next == ';' && line[i - 1] != ' ' && line[i - 1] != ';')
+				{
+					new_len += 2;
+					continue;
+				}
+				else if (line[i - 1] == ';' && next != ' ')
+				{
+					new_len += 2;
+					continue;
+				}
+				if (line[i - 1] != ' ')
+					new_len++;
+				if (next != ' ')
+					new_len++;
 			}
 			else
-				_strcat(path_copy, ":");
+				logical_ops(&line[i], &new_len);
 		}
-		else
+		else if (current == ';')
 		{
-			_strncat(path_copy, &path[i], 1);
+			if (i != 0 && line[i - 1] != ' ')
+				new_len++;
+			if (next != ' ' && next != ';')
+				new_len++;
 		}
+		new_len++;
 	}
-	return (path_copy);
+	return (new_len);
 }
-
 /**
- * get_path_dir - Tokenizes a colon-separated list.
- * @path: The colon-separated list of directories.
- *
- * Return: A pointer to the initialized linked list.
+ * logical_ops - Checks a line for logical operators "||" or "&&".
+ * @line: A pointer to the character to check in the line.
+ * @new_len: Pointer to new_len in get_new_len function.
  */
-list_t *get_path_dir(char *path)
+void logical_ops(char *line, ssize_t *new_len)
 {
-	int index;
-	char **dirs, *path_copy;
-	list_t *head = NULL;
+	char previous, current, next;
 
-	path_copy = fill_path_dir(path);
-	if (!path_copy)
-		return (NULL);
-	dirs = _strtok(path_copy, ":");
-	free(path_copy);
-	if (!dirs)
-		return (NULL);
+	previous = *(line - 1);
+	current = *line;
+	next = *(line + 1);
 
-	for (index = 0; dirs[index]; index++)
+	if (current == '&')
 	{
-		if (add_on_node_end(&head, dirs[index]) == NULL)
-		{
-			free_list(head);
-			free(dirs);
-			return (NULL);
-		}
+		if (next == '&' && previous != ' ')
+			(*new_len)++;
+		else if (previous == '&' && next != ' ')
+			(*new_len)++;
 	}
-
-	free(dirs);
-
-	return (head);
-}
-
-/**
- * _copyenv - Creates a copy of the environment.
- *
- * Return: If an error occurs - NULL.
- *         O/w - a double pointer to the new copy.
- */
-char **_copyenv(void)
-{
-	char **new_environ;
-	size_t size;
-	int index;
-
-	for (size = 0; environ[size]; size++)
-		;
-
-	new_environ = malloc(sizeof(char *) * (size + 1));
-	if (!new_environ)
-		return (NULL);
-
-	for (index = 0; environ[index]; index++)
+	else if (current == '|')
 	{
-		new_environ[index] = malloc(_strlen(environ[index]) + 1);
-
-		if (!new_environ[index])
-		{
-			for (index--; index >= 0; index--)
-				free(new_environ[index]);
-			free(new_environ);
-			return (NULL);
-		}
-		_strcpy(new_environ[index], environ[index]);
+		if (next == '|' && previous != ' ')
+			(*new_len)++;
+		else if (previous == '|' && next != ' ')
+			(*new_len)++;
 	}
-	new_environ[index] = NULL;
-
-	return (new_environ);
 }
 
 /**
- * free_env - Frees the the environment copy.
+ * help_all - Displays all possible builtin shellby commands.
  */
-void free_env(void)
+void help_all(void)
 {
-	int index;
+	char *msg = "Shellby\nThese shell commands are defined internally.\n";
 
-	for (index = 0; environ[index]; index++)
-		free(environ[index]);
-	free(environ);
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = "Type 'help' to see this list.\nType 'help name' to find ";
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = "out more about the function 'name'.\n\n  alias   \t";
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = "alias [NAME[='VALUE'] ...]\n  cd    \tcd   ";
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = "[DIRECTORY]\n  exit    \texit [STATUS]\n  env     \tenv";
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = "\n  setenv  \tsetenv [VARIABLE] [VALUE]\n  unsetenv\t";
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = "unsetenv [VARIABLE]\n";
+	write(STDOUT_FILENO, msg, _strlen(msg));
 }
 
 /**
- * _getenv - Gets an environmental variable from the PATH.
- * @var: The name of the environmental variable to get.
- *
- * Return: If the environmental variable does not exist - NULL.
- *         Otherwise - a pointer to the environmental variable.
+ * help_alias - Displays information on the shellby builtin command 'alias'.
  */
-char **_getenv(const char *var)
+void help_alias(void)
 {
-	int index, len;
+	char *msg = "alias: alias [NAME[='VALUE'] ...]\n\tHandles aliases.\n";
 
-	len = _strlen(var);
-	for (index = 0; environ[index]; index++)
-	{
-		if (_strncmp(var, environ[index], len) == 0)
-			return (&environ[index]);
-	}
-
-	return (NULL);
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = "\n\talias: Prints a list of all aliases, one per line, in ";
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = "the format NAME='VALUE'.\n\talias name [name2 ...]:prints";
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = " the aliases name, name2, etc. one per line, in the ";
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = "form NAME='VALUE'.\n\talias NAME='VALUE' [...]: Defines";
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = " an alias for each NAME whose VALUE is given. If NAME ";
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = "is already an alias, replace its value with VALUE.\n";
+	write(STDOUT_FILENO, msg, _strlen(msg));
 }
+
+/**
+ * help_cd - Displays information on the shellby builtin command 'cd'.
+ */
+void help_cd(void)
+{
+	char *msg = "cd: cd [DIRECTORY]\n\tChanges the current directory of the";
+
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = " process to DIRECTORY.\n\n\tIf no argument is given, the ";
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = "command is interpreted as cd $HOME. If the argument '-' is";
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = " given, the command is interpreted as cd $OLDPWD.\n\n";
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = "\tThe environment variables PWD and OLDPWD are updated ";
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = "after a change of directory.\n";
+	write(STDOUT_FILENO, msg, _strlen(msg));
+}
+
+/**
+ * help_exit - Displays information on the shellby builtin command 'exit'.
+ */
+void help_exit(void)
+{
+	char *msg = "exit: exit [STATUS]\n\tExits the shell.\n\n\tThe ";
+
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = "STATUS argument is the integer used to exit the shell.";
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = " If no argument is given, the command is interpreted as";
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = " exit 0.\n";
+	write(STDOUT_FILENO, msg, _strlen(msg));
+}
+
+

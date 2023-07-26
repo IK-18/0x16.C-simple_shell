@@ -1,124 +1,12 @@
 #include "shell.h"
 
 /**
- * lenght_num - Counts the digit length of a number.
- * @num: number to measure.
+ * error_126 - Creates an error message for permission denied failures.
+ * @args: An array of arguments passed to the command.
  *
- * Return: digit length.
+ * Return: The error string.
  */
-int lenght_num(int num)
-{
-	unsigned int num1;
-	int len = 1;
-
-	if (num < 0)
-	{
-		len++;
-		num1 = num * -1;
-	}
-	else
-	{
-		num1 = num;
-	}
-	while (num1 > 9)
-	{
-		len++;
-		num1 /= 10;
-	}
-
-	return (len);
-}
-
-/**
- * _itoa - Converts an integer to a string.
- * @num: integer.
- *
- * Return: converted string.
- */
-char *_itoa(int num)
-{
-	char *buffer;
-	int len = lenght_num(num);
-	unsigned int num1;
-
-	buffer = malloc(sizeof(char) * (len + 1));
-	if (!buffer)
-		return (NULL);
-
-	buffer[len] = '\0';
-
-	if (num < 0)
-	{
-		num1 = num * -1;
-		buffer[0] = '-';
-	}
-	else
-	{
-		num1 = num;
-	}
-
-	len--;
-	do {
-		buffer[len] = (num1 % 10) + '0';
-		num1 /= 10;
-		len--;
-	} while (num1 > 0);
-
-	return (buffer);
-}
-
-
-/**
- * create_err - Writes a custom error message to stderr.
- * @args: array of arguments.
- * @err: error value.
- *
- * Return: error value.
- */
-int create_err(char **args, int err)
-{
-	char *error;
-
-	switch (err)
-	{
-	case -1:
-		error = err_env(args);
-		break;
-	case 1:
-		error = err_1(args);
-		break;
-	case 2:
-		if (*(args[0]) == 'e')
-			error = error_2_exit(++args);
-		else if (args[0][0] == ';' || args[0][0] == '&' || args[0][0] == '|')
-			error = err_2synt(args);
-		else
-			error = err_2cd(args);
-		break;
-	case 126:
-		error = err126(args);
-		break;
-	case 127:
-		error = err_127(args);
-		break;
-	}
-	write(STDERR_FILENO, error, _strlen(error));
-
-	if (error)
-		free(error);
-	return (err);
-
-}
-
-#include "shell.h"
-
-/**
- * err126 - error message for permission denied failures.
- * @args: array of arguments passed to the command.
- *
- * Return: error string.
- */
-char *err126(char **args)
+char *error_126(char **args)
 {
 	char *error, *hist_str;
 	int len;
@@ -147,12 +35,12 @@ char *err126(char **args)
 }
 
 /**
- * err_127 - Create an error message for command not found failures.
- * @args: array of arguments passed to the command.
+ * error_127 - Creates an error message for command not found failures.
+ * @args: An array of arguments passed to the command.
  *
- * Return: error string.
+ * Return: The error string.
  */
-char *err_127(char **args)
+char *error_127(char **args)
 {
 	char *error, *hist_str;
 	int len;
@@ -178,4 +66,74 @@ char *err_127(char **args)
 
 	free(hist_str);
 	return (error);
+}
+
+/**
+ * _copyenv - Creates a copy of the environment.
+ *
+ * Return: If an error occurs - NULL.
+ *         O/w - a double pointer to the new copy.
+ */
+char **_copyenv(void)
+{
+	char **new_environ;
+	size_t size;
+	int index;
+
+	for (size = 0; environ[size]; size++)
+		;
+
+	new_environ = malloc(sizeof(char *) * (size + 1));
+	if (!new_environ)
+		return (NULL);
+
+	for (index = 0; environ[index]; index++)
+	{
+		new_environ[index] = malloc(_strlen(environ[index]) + 1);
+
+		if (!new_environ[index])
+		{
+			for (index--; index >= 0; index--)
+				free(new_environ[index]);
+			free(new_environ);
+			return (NULL);
+		}
+		_strcpy(new_environ[index], environ[index]);
+	}
+	new_environ[index] = NULL;
+
+	return (new_environ);
+}
+
+/**
+ * free_env - Frees the the environment copy.
+ */
+void free_env(void)
+{
+	int index;
+
+	for (index = 0; environ[index]; index++)
+		free(environ[index]);
+	free(environ);
+}
+
+/**
+ * _getenv - Gets an environmental variable from the PATH.
+ * @var: The name of the environmental variable to get.
+ *
+ * Return: If the environmental variable does not exist - NULL.
+ *         Otherwise - a pointer to the environmental variable.
+ */
+char **_getenv(const char *var)
+{
+	int index, len;
+
+	len = _strlen(var);
+	for (index = 0; environ[index]; index++)
+	{
+		if (_strncmp(var, environ[index], len) == 0)
+			return (&environ[index]);
+	}
+
+	return (NULL);
 }

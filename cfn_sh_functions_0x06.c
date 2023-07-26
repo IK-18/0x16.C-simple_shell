@@ -1,202 +1,179 @@
 #include "shell.h"
 
 /**
- * arg_get - Gets a command from standard input.
- * @line: A buffer to store the command.
- * @exe_ret: The return value of the last executed command.
+ * _realloc - Reallocates a memory block using malloc and free.
+ * @ptr: A pointer to the memory previously allocated.
+ * @old_size: The size in bytes of the allocated space for ptr.
+ * @new_size: The size in bytes for the new memory block.
  *
- * Return: error - NULL.Otherwise - a pointer to the stored command.
+ * Return: If new_size == old_size - ptr.
+ *         If new_size == 0 and ptr is not NULL - NULL.
+ *         Otherwise - a pointer to the reallocated memory block.
  */
-char *arg_get(char *line, int *exe_ret)
+void *_realloc(void *ptr, unsigned int old_size, unsigned int new_size)
 {
-	size_t n = 0;
-	ssize_t read;
-	char *prompt = "$ ";
+	void *mem;
+	char *ptr_copy, *filler;
+	unsigned int index;
 
-	if (line)
-		free(line);
+	if (new_size == old_size)
+		return (ptr);
 
-	read = _getline(&line, &n, STDIN_FILENO);
-	if (read == -1)
+	if (ptr == NULL)
+	{
+		mem = malloc(new_size);
+		if (mem == NULL)
+			return (NULL);
+
+		return (mem);
+	}
+
+	if (new_size == 0 && ptr != NULL)
+	{
+		free(ptr);
 		return (NULL);
-	if (read == 1)
-	{
-		hist++;
-		if (isatty(STDIN_FILENO))
-			write(STDOUT_FILENO, prompt, 2);
-		return (arg_get(line, exe_ret));
 	}
 
-	line[read - 1] = '\0';
-	var_replace(&line, exe_ret);
-	handl_lne(&line, read);
+	ptr_copy = ptr;
+	mem = malloc(sizeof(*ptr_copy) * new_size);
+	if (mem == NULL)
+	{
+		free(ptr);
+		return (NULL);
+	}
 
-	return (line);
+	filler = mem;
+
+	for (index = 0; index < old_size && index < new_size; index++)
+		filler[index] = *ptr_copy++;
+
+	free(ptr);
+	return (mem);
 }
 
 /**
- * arg_call - Partitions operators from commands and calls them.
- * @args: array of arguments.
- * @front: double pointer to the beginning of args.
- * @exe_ret: return value of the parent process' last executed command.
- *
- * Return: The return value of the last executed command.
+ * assign_lineptr - Reassigns the lineptr variable for _getline.
+ * @lineptr: A buffer to store an input string.
+ * @n: The size of lineptr.
+ * @buffer: The string to assign to lineptr.
+ * @b: The size of buffer.
  */
-int arg_call(char **args, char **front, int *exe_ret)
+void assign_lineptr(char **lineptr, size_t *n, char *buffer, size_t b)
 {
-	int ret, index;
-
-	if (!args[0])
-		return (*exe_ret);
-	for (index = 0; args[index]; index++)
+	if (*lineptr == NULL)
 	{
-		if (_strncmp(args[index], "||", 2) == 0)
-		{
-			free(args[index]);
-			args[index] = NULL;
-			args = replace_aliases(args);
-			ret = arg_run(args, front, exe_ret);
-			if (*exe_ret != 0)
-			{
-				args = &args[++index];
-				index = 0;
-			}
-			else
-			{
-				for (index++; args[index]; index++)
-					free(args[index]);
-				return (ret);
-			}
-		}
-		else if (_strncmp(args[index], "&&", 2) == 0)
-		{
-			free(args[index]);
-			args[index] = NULL;
-			args = replace_aliases(args);
-			ret = arg_run(args, front, exe_ret);
-			if (*exe_ret == 0)
-			{
-				args = &args[++index];
-				index = 0;
-			}
-			else
-			{
-				for (index++; args[index]; index++)
-					free(args[index]);
-				return (ret);
-			}
-		}
+		if (b > 120)
+			*n = b;
+		else
+			*n = 120;
+		*lineptr = buffer;
 	}
-	args = replace_aliases(args);
-	ret = arg_run(args, front, exe_ret);
-	return (ret);
-}
-
-/**
- * arg_run - Call execution of a command.
- * @args: array of arguments.
- * @front: double pointer to the beginning of args.
- * @exe_ret: return value of the parent process' last executed command.
- *
- * Return: return value of the last executed command.
- */
-int arg_run(char **args, char **front, int *exe_ret)
-{
-	int ret, i;
-	int (*builtin)(char **args, char **front);
-
-	builtin = get_builtin(args[0]);
-
-	if (builtin)
+	else if (*n < b)
 	{
-		ret = builtin(args + 1, front);
-		if (ret != EXIT)
-			*exe_ret = ret;
+		if (b > 120)
+			*n = b;
+		else
+			*n = 120;
+		*lineptr = buffer;
 	}
 	else
 	{
-		*exe_ret = execute(args, front);
-		ret = *exe_ret;
+		_strcpy(*lineptr, buffer);
+		free(buffer);
 	}
+}
 
-	hist++;
+/**
+ * _getline - Reads input from a stream.
+ * @lineptr: A buffer to store the input.
+ * @n: The size of lineptr.
+ * @stream: The stream to read from.
+ *
+ * Return: The number of bytes read.
+ */
+ssize_t _getline(char **lineptr, size_t *n, FILE *stream)
+{
+	static ssize_t input;
+	ssize_t ret;
+	char c = 'x', *buffer;
+	int r;
 
-	for (i = 0; args[i]; i++)
-		free(args[i]);
+	if (input == 0)
+		fflush(stream);
+	else
+		return (-1);
+	input = 0;
 
+	buffer = malloc(sizeof(char) * 120);
+	if (!buffer)
+		return (-1);
+
+	while (c != '\n')
+	{
+		r = read(STDIN_FILENO, &c, 1);
+		if (r == -1 || (r == 0 && input == 0))
+		{
+			free(buffer);
+			return (-1);
+		}
+		if (r == 0 && input != 0)
+		{
+			input++;
+			break;
+		}
+
+		if (input >= 120)
+			buffer = _realloc(buffer, input, input + 1);
+
+		buffer[input] = c;
+		input++;
+	}
+	buffer[input] = '\0';
+
+	assign_lineptr(lineptr, n, buffer, input);
+
+	ret = input;
+	if (r != 0)
+		input = 0;
 	return (ret);
 }
 
 /**
- * handle_args - Gets, calls, and runs the execution of a command.
- * @exe_ret: The return value of the parent process' last executed command.
- *
- * Return: If an end-of-file is read - E_OF_F (-2).
- *         If the input cannot be tokenized - -1.
- *         O/w - The exit value of the last executed command.
+ * help_env - Displays information on the shellby builtin command 'env'.
  */
-int handle_args(int *exe_ret)
+void help_env(void)
 {
-	int ret = 0, index;
-	char **args, *line = NULL, **front;
+	char *msg = "env: env\n\tPrints the current environment.\n";
 
-	line = arg_get(line, exe_ret);
-	if (!line)
-		return (E_OF_F);
-
-	args = _strtok(line, " ");
-	free(line);
-	if (!args)
-		return (ret);
-	if (check_args(args) != 0)
-	{
-		*exe_ret = 2;
-		free_args(args, args);
-		return (*exe_ret);
-	}
-	front = args;
-
-	for (index = 0; args[index]; index++)
-	{
-		if (_strncmp(args[index], ";", 1) == 0)
-		{
-			free(args[index]);
-			args[index] = NULL;
-			ret = arg_call(args, front, exe_ret);
-			args = &args[++index];
-			index = 0;
-		}
-	}
-	if (args)
-		ret = arg_call(args, front, exe_ret);
-
-	free(front);
-	return (ret);
+	write(STDOUT_FILENO, msg, _strlen(msg));
 }
 
 /**
- * check_args - Checks for any leading ';', ';;', '&&', or '||'.
- * @args: pointer to tokenized commands and arguments.
- *
- * Return: If a ';', '&&', or '||' is placed at an invalid position - 2.
- *	   Otherwise - 0.
+ * help_setenv - Displays information on the shellby builtin command 'setenv'.
  */
-int check_args(char **args)
+void help_setenv(void)
 {
-	size_t i;
-	char *cur, *nex;
+	char *msg = "setenv: setenv [VARIABLE] [VALUE]\n\tInitializes a new";
 
-	for (i = 0; args[i]; i++)
-	{
-		cur = args[i];
-		if (cur[0] == ';' || cur[0] == '&' || cur[0] == '|')
-		{
-			if (i == 0 || cur[1] == ';')
-				return (create_err(&args[i], 2));
-			nex = args[i + 1];
-			if (nex && (nex[0] == ';' || nex[0] == '&' || nex[0] == '|'))
-				return (create_err(&args[i + 1], 2));
-		}
-	}
-	return (0);
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = "environment variable, or modifies an existing one.\n\n";
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = "\tUpon failure, prints a message to stderr.\n";
+	write(STDOUT_FILENO, msg, _strlen(msg));
 }
+
+/**
+ * help_unsetenv - Displays information on the shellby builtin command
+ * 'unsetenv'.
+ */
+void help_unsetenv(void)
+{
+	char *msg = "unsetenv: unsetenv [VARIABLE]\n\tRemoves an ";
+
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = "environmental variable.\n\n\tUpon failure, prints a ";
+	write(STDOUT_FILENO, msg, _strlen(msg));
+	msg = "message to stderr.\n";
+	write(STDOUT_FILENO, msg, _strlen(msg));
+}
+

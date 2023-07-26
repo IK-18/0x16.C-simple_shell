@@ -1,149 +1,154 @@
 #include "shell.h"
 
 /**
- * _strtok - Tokenizes a string.
- * @line: The string.
- * @delim: The delimiter character to tokenize the string by.
+ * get_args - Gets a command from standard input.
+ * @line: A buffer to store the command.
+ * @exe_ret: The return value of the last executed command.
  *
- * Return: A pointer to an array containing the tokenized words.
+ * Return: If an error occurs - NULL.
+ *         Otherwise - a pointer to the stored command.
  */
-char **_strtok(char *line, char *delim)
+char *get_args(char *line, int *exe_ret)
 {
-	char **ptr;
-	int index = 0, tokens, t, letters, l;
+	size_t n = 0;
+	ssize_t read;
+	char *prompt = "$ ";
 
-	tokens = token_count(line, delim);
-	if (tokens == 0)
+	if (line)
+		free(line);
+
+	read = _getline(&line, &n, STDIN_FILENO);
+	if (read == -1)
 		return (NULL);
-
-	ptr = malloc(sizeof(char *) * (tokens + 2));
-	if (!ptr)
-		return (NULL);
-
-	for (t = 0; t < tokens; t++)
+	if (read == 1)
 	{
-		while (line[index] == *delim)
-			index++;
-
-		letters = token_len(line + index, delim);
-
-		ptr[t] = malloc(sizeof(char) * (letters + 1));
-		if (!ptr[t])
-		{
-			for (index -= 1; index >= 0; index--)
-				free(ptr[index]);
-			free(ptr);
-			return (NULL);
-		}
-
-		for (l = 0; l < letters; l++)
-		{
-			ptr[t][l] = line[index];
-			index++;
-		}
-
-		ptr[t][l] = '\0';
+		hist++;
+		if (isatty(STDIN_FILENO))
+			write(STDOUT_FILENO, prompt, 2);
+		return (get_args(line, exe_ret));
 	}
-	ptr[t] = NULL;
-	ptr[t + 1] = NULL;
 
-	return (ptr);
+	line[read - 1] = '\0';
+	variable_replacement(&line, exe_ret);
+	handle_line(&line, read);
+
+	return (line);
 }
 
 /**
- * open_fail - If the file doesn't exist or lacks proper permissions, print
- * a cant open error.
- * @file_path: Path to the supposed file.
+ * call_args - Partitions operators from commands and calls them.
+ * @args: An array of arguments.
+ * @front: A double pointer to the beginning of args.
+ * @exe_ret: The return value of the parent process' last executed command.
  *
- * Return: 127.
+ * Return: The return value of the last executed command.
  */
-
-int open_fail(char *file_path)
+int call_args(char **args, char **front, int *exe_ret)
 {
-	char *error, *hist_str;
-	int len;
+	int ret, index;
 
-	hist_str = _itoa(hist);
-	if (!hist_str)
-		return (127);
-
-	len = _strlen(name) + _strlen(hist_str) + _strlen(file_path) + 16;
-	error = malloc(sizeof(char) * (len + 1));
-	if (!error)
-	{
-		free(hist_str);
-		return (127);
-	}
-
-	_strcpy(error, name);
-	_strcat(error, ": ");
-	_strcat(error, hist_str);
-	_strcat(error, ": Can't open ");
-	_strcat(error, file_path);
-	_strcat(error, "\n");
-
-	free(hist_str);
-	write(STDERR_FILENO, error, len);
-	free(error);
-	return (127);
-}
-
-/**
- * file_comnd_fle_proc - Takes a file and attempts to run the commands stored
- * within.
- * @file_path: Path to the file.
- * @exe_ret: Return value of the last executed command.
- *
- * Return: If file couldn't be opened - 127.
- *	   If malloc fails - -1.
- *	   Otherwise the return value of the last command ran.
- */
-int file_comnd_fle_proc(char *file_path, int *exe_ret)
-{
-	ssize_t file, b_read, i;
-	unsigned int line_size = 0;
-	unsigned int old_size = 120;
-	char *line, **args, **front;
-	char buffer[120];
-	int ret;
-
-	hist = 0;
-	file = open(file_path, O_RDONLY);
-	if (file == -1)
-	{
-		*exe_ret = open_fail(file_path);
+	if (!args[0])
 		return (*exe_ret);
-	}
-	line = malloc(sizeof(char) * old_size);
-	if (!line)
-		return (-1);
-	do {
-		b_read = read(file, buffer, 119);
-		if (b_read == 0 && line_size == 0)
-			return (*exe_ret);
-		buffer[b_read] = '\0';
-		line_size += b_read;
-		line = _realloc(line, old_size, line_size);
-		_strcat(line, buffer);
-		old_size = line_size;
-	} while (b_read);
-	for (i = 0; line[i] == '\n'; i++)
-		line[i] = ' ';
-	for (; i < line_size; i++)
+	for (index = 0; args[index]; index++)
 	{
-		if (line[i] == '\n')
+		if (_strncmp(args[index], "||", 2) == 0)
 		{
-			line[i] = ';';
-			for (i += 1; i < line_size && line[i] == '\n'; i++)
-				line[i] = ' ';
+			free(args[index]);
+			args[index] = NULL;
+			args = replace_aliases(args);
+			ret = run_args(args, front, exe_ret);
+			if (*exe_ret != 0)
+			{
+				args = &args[++index];
+				index = 0;
+			}
+			else
+			{
+				for (index++; args[index]; index++)
+					free(args[index]);
+				return (ret);
+			}
+		}
+		else if (_strncmp(args[index], "&&", 2) == 0)
+		{
+			free(args[index]);
+			args[index] = NULL;
+			args = replace_aliases(args);
+			ret = run_args(args, front, exe_ret);
+			if (*exe_ret == 0)
+			{
+				args = &args[++index];
+				index = 0;
+			}
+			else
+			{
+				for (index++; args[index]; index++)
+					free(args[index]);
+				return (ret);
+			}
 		}
 	}
-	var_replace(&line, exe_ret);
-	handl_lne(&line, line_size);
+	args = replace_aliases(args);
+	ret = run_args(args, front, exe_ret);
+	return (ret);
+}
+
+/**
+ * run_args - Calls the execution of a command.
+ * @args: An array of arguments.
+ * @front: A double pointer to the beginning of args.
+ * @exe_ret: The return value of the parent process' last executed command.
+ *
+ * Return: The return value of the last executed command.
+ */
+int run_args(char **args, char **front, int *exe_ret)
+{
+	int ret, i;
+	int (*builtin)(char **args, char **front);
+
+	builtin = get_builtin(args[0]);
+
+	if (builtin)
+	{
+		ret = builtin(args + 1, front);
+		if (ret != EXIT)
+			*exe_ret = ret;
+	}
+	else
+	{
+		*exe_ret = execute(args, front);
+		ret = *exe_ret;
+	}
+
+	hist++;
+
+	for (i = 0; args[i]; i++)
+		free(args[i]);
+
+	return (ret);
+}
+
+/**
+ * handle_args - Gets, calls, and runs the execution of a command.
+ * @exe_ret: The return value of the parent process' last executed command.
+ *
+ * Return: If an end-of-file is read - END_OF_FILE (-2).
+ *         If the input cannot be tokenized - -1.
+ *         O/w - The exit value of the last executed command.
+ */
+int handle_args(int *exe_ret)
+{
+	int ret = 0, index;
+	char **args, *line = NULL, **front;
+
+	line = get_args(line, exe_ret);
+	if (!line)
+		return (END_OF_FILE);
+
 	args = _strtok(line, " ");
 	free(line);
 	if (!args)
-		return (0);
+		return (ret);
 	if (check_args(args) != 0)
 	{
 		*exe_ret = 2;
@@ -152,91 +157,47 @@ int file_comnd_fle_proc(char *file_path, int *exe_ret)
 	}
 	front = args;
 
-	for (i = 0; args[i]; i++)
+	for (index = 0; args[index]; index++)
 	{
-		if (_strncmp(args[i], ";", 1) == 0)
+		if (_strncmp(args[index], ";", 1) == 0)
 		{
-			free(args[i]);
-			args[i] = NULL;
-			ret = arg_call(args, front, exe_ret);
-			args = &args[++i];
-			i = 0;
+			free(args[index]);
+			args[index] = NULL;
+			ret = call_args(args, front, exe_ret);
+			args = &args[++index];
+			index = 0;
 		}
 	}
-
-	ret = arg_call(args, front, exe_ret);
+	if (args)
+		ret = call_args(args, front, exe_ret);
 
 	free(front);
 	return (ret);
 }
 
 /**
- * handle_signal - Prints a new prompt upon a signal.
- * @sig: The signal.
- */
-void handle_signal(int sig)
-{
-	char *new_prompt = "\n$ ";
-
-	(void)sig;
-	signal(SIGINT, handle_signal);
-	write(STDIN_FILENO, new_prompt, 3);
-}
-
-/**
- * execute - Executes a command in a child process.
- * @args: An array of arguments.
- * @front: A double pointer to the beginning of args.
+ * check_args - Checks if there are any leading ';', ';;', '&&', or '||'.
+ * @args: 2D pointer to tokenized commands and arguments.
  *
- * Return: If an error occurs - a corresponding error code.
- *         O/w - The exit value of the last executed command.
+ * Return: If a ';', '&&', or '||' is placed at an invalid position - 2.
+ *	   Otherwise - 0.
  */
-int execute(char **args, char **front)
+int check_args(char **args)
 {
-	pid_t child_pid;
-	int status, flag = 0, ret = 0;
-	char *command = args[0];
+	size_t i;
+	char *cur, *nex;
 
-	if (command[0] != '/' && command[0] != '.')
+	for (i = 0; args[i]; i++)
 	{
-		flag = 1;
-		command = get_location(command);
-	}
-
-	if (!command || (access(command, F_OK) == -1))
-	{
-		if (errno == EACCES)
-			ret = (create_err(args, 126));
-		else
-			ret = (create_err(args, 127));
-	}
-	else
-	{
-		child_pid = fork();
-		if (child_pid == -1)
+		cur = args[i];
+		if (cur[0] == ';' || cur[0] == '&' || cur[0] == '|')
 		{
-			if (flag)
-				free(command);
-			perror("Error child:");
-			return (1);
-		}
-		if (child_pid == 0)
-		{
-			execve(command, args, environ);
-			if (errno == EACCES)
-				ret = (create_err(args, 126));
-			free_env();
-			free_args(args, front);
-			als_free_list(aliases);
-			_exit(ret);
-		}
-		else
-		{
-			wait(&status);
-			ret = WEXITSTATUS(status);
+			if (i == 0 || cur[1] == ';')
+				return (create_error(&args[i], 2));
+			nex = args[i + 1];
+			if (nex && (nex[0] == ';' || nex[0] == '&' || nex[0] == '|'))
+				return (create_error(&args[i + 1], 2));
 		}
 	}
-	if (flag)
-		free(command);
-	return (ret);
+	return (0);
 }

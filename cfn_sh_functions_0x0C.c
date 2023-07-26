@@ -1,188 +1,100 @@
 #include "shell.h"
 
 /**
- * get_builtin - Matches a command with a corresponding
- *               cfn_sh builtin function.
- * @command: The command to match.
+ * token_len - Locates the delimiter index marking the end
+ *             of the first token contained within a string.
+ * @str: The string to be searched.
+ * @delim: The delimiter character.
  *
- * Return: A function pointer to the corresponding builtin.
+ * Return: The delimiter index marking the end of
+ *         the intitial token pointed to be str.
  */
-int (*get_builtin(char *command))(char **args, char **front)
+int token_len(char *str, char *delim)
 {
-	builtin_t funcs[] = {
-		{ "exit", cfn_sh_exit },
-		{ "env", cfn_sh_env },
-		{ "setenv", cfn_sh_setenv },
-		{ "unsetenv", cfn_sh_unsetenv },
-		{ "cd", cfn_sh_cd },
-		{ "alias", cfn_sh_alias },
-		{ "help", cfn_sh_help },
-		{ NULL, NULL }
-	};
-	int i;
+	int index = 0, len = 0;
 
-	for (i = 0; funcs[i].name; i++)
+	while (*(str + index) && *(str + index) != *delim)
 	{
-		if (_strcmp(funcs[i].name, command) == 0)
-			break;
+		len++;
+		index++;
 	}
-	return (funcs[i].f);
+
+	return (len);
 }
 
 /**
- * cfn_sh_exit - Causes normal process termination
- *                for the cfn_sh shell.
- * @args: An array of arguments containing the exit value.
- * @front: A double pointer to the beginning of args.
+ * count_tokens - Counts the number of delimited
+ *                words contained within a string.
+ * @str: The string to be searched.
+ * @delim: The delimiter character.
  *
- * Return: If there are no arguments - -3.
- *         If the given exit value is invalid - 2.
- *         O/w - exits with the given status value.
- *
- * Description: Upon returning -3, the program exits back in the main function.
+ * Return: The number of words contained within str.
  */
-int cfn_sh_exit(char **args, char **front)
+int count_tokens(char *str, char *delim)
 {
-	int i, len_of_int = 10;
-	unsigned int num = 0, max = 1 << (sizeof(int) * 8 - 1);
+	int index, tokens = 0, len = 0;
 
-	if (args[0])
+	for (index = 0; *(str + index); index++)
+		len++;
+
+	for (index = 0; index < len; index++)
 	{
-		if (args[0][0] == '+')
+		if (*(str + index) != *delim)
 		{
-			i = 1;
-			len_of_int++;
-		}
-		for (; args[0][i]; i++)
-		{
-			if (i <= len_of_int && args[0][i] >= '0' && args[0][i] <= '9')
-				num = (num * 10) + (args[0][i] - '0');
-			else
-				return (create_err(--args, 2));
+			tokens++;
+			index += token_len(str + index, delim);
 		}
 	}
-	else
-	{
-		return (-3);
-	}
-	if (num > max - 1)
-		return (create_err(--args, 2));
-	args -= 1;
-	free_args(args, front);
-	free_env();
-	als_free_list(aliases);
-	exit(num);
+
+	return (tokens);
 }
 
 /**
- * cfn_sh_cd - Changes the current directory of the cfn_sh process.
- * @args: An array of arguments.
- * @front: A double pointer to the beginning of args.
+ * _strtok - Tokenizes a string.
+ * @line: The string.
+ * @delim: The delimiter character to tokenize the string by.
  *
- * Return: If the given string is not a directory - 2.
- *         If an error occurs - -1.
- *         Otherwise - 0.
+ * Return: A pointer to an array containing the tokenized words.
  */
-int cfn_sh_cd(char **args, char __attribute__((__unused__)) **front)
+char **_strtok(char *line, char *delim)
 {
-	char **dir_info, *new_line = "\n";
-	char *oldpwd = NULL, *pwd = NULL;
-	struct stat dir;
+	char **ptr;
+	int index = 0, tokens, t, letters, l;
 
-	oldpwd = getcwd(oldpwd, 0);
-	if (!oldpwd)
-		return (-1);
+	tokens = count_tokens(line, delim);
+	if (tokens == 0)
+		return (NULL);
 
-	if (args[0])
+	ptr = malloc(sizeof(char *) * (tokens + 2));
+	if (!ptr)
+		return (NULL);
+
+	for (t = 0; t < tokens; t++)
 	{
-		if (*(args[0]) == '-' || _strcmp(args[0], "--") == 0)
+		while (line[index] == *delim)
+			index++;
+
+		letters = token_len(line + index, delim);
+
+		ptr[t] = malloc(sizeof(char) * (letters + 1));
+		if (!ptr[t])
 		{
-			if ((args[0][1] == '-' && args[0][2] == '\0') ||
-					args[0][1] == '\0')
-			{
-				if (_getenv("OLDPWD") != NULL)
-					(chdir(*_getenv("OLDPWD") + 7));
-			}
-			else
-			{
-				free(oldpwd);
-				return (create_err(args, 2));
-			}
+			for (index -= 1; index >= 0; index--)
+				free(ptr[index]);
+			free(ptr);
+			return (NULL);
 		}
-		else
+
+		for (l = 0; l < letters; l++)
 		{
-			if (stat(args[0], &dir) == 0 && S_ISDIR(dir.st_mode)
-					&& ((dir.st_mode & S_IXUSR) != 0))
-				chdir(args[0]);
-			else
-			{
-				free(oldpwd);
-				return (create_err(args, 2));
-			}
+			ptr[t][l] = line[index];
+			index++;
 		}
+
+		ptr[t][l] = '\0';
 	}
-	else
-	{
-		if (_getenv("HOME") != NULL)
-			chdir(*(_getenv("HOME")) + 5);
-	}
+	ptr[t] = NULL;
+	ptr[t + 1] = NULL;
 
-	pwd = getcwd(pwd, 0);
-	if (!pwd)
-		return (-1);
-
-	dir_info = malloc(sizeof(char *) * 2);
-	if (!dir_info)
-		return (-1);
-
-	dir_info[0] = "OLDPWD";
-	dir_info[1] = oldpwd;
-	if (cfn_sh_setenv(dir_info, dir_info) == -1)
-		return (-1);
-
-	dir_info[0] = "PWD";
-	dir_info[1] = pwd;
-	if (cfn_sh_setenv(dir_info, dir_info) == -1)
-		return (-1);
-	if (args[0] && args[0][0] == '-' && args[0][1] != '-')
-	{
-		write(STDOUT_FILENO, pwd, _strlen(pwd));
-		write(STDOUT_FILENO, new_line, 1);
-	}
-	free(oldpwd);
-	free(pwd);
-	free(dir_info);
-	return (0);
-}
-
-/**
- * cfn_sh_help - Displays information about cfn_sh builtin commands.
- * @args: An array of arguments.
- * @front: A pointer to the beginning of args.
- *
- * Return: If an error occurs - -1.
- *         Otherwise - 0.
- */
-int cfn_sh_help(char **args, char __attribute__((__unused__)) **front)
-{
-	if (!args[0])
-		all_help();
-	else if (_strcmp(args[0], "alias") == 0)
-		als_help();
-	else if (_strcmp(args[0], "cd") == 0)
-		c_d_help();
-	else if (_strcmp(args[0], "exit") == 0)
-		exit_help();
-	else if (_strcmp(args[0], "env") == 0)
-		env_help();
-	else if (_strcmp(args[0], "setenv") == 0)
-		help_set_env();
-	else if (_strcmp(args[0], "unsetenv") == 0)
-		help_unset_env();
-	else if (_strcmp(args[0], "help") == 0)
-		help_h();
-	else
-		write(STDERR_FILENO, name, _strlen(name));
-
-	return (0);
+	return (ptr);
 }

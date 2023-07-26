@@ -1,113 +1,137 @@
 #include "shell.h"
 
 /**
- * _strcpy - Copies the string pointed to by src, including the
- *           terminating null byte, to the buffer pointed by des.
- * @dest: Pointer to the destination of copied string.
- * @src: Pointer to the src of the source string.
+ * add_alias_end - Adds a node to the end of a alias_t linked list.
+ * @head: A pointer to the head of the list_t list.
+ * @name: The name of the new alias to be added.
+ * @value: The value of the new alias to be added.
  *
- * Return: Pointer to dest.
+ * Return: If an error occurs - NULL.
+ *         Otherwise - a pointer to the new node.
  */
-char *_strcpy(char *dest, const char *src)
+alias_t *add_alias_end(alias_t **head, char *name, char *value)
 {
-	size_t i;
+	alias_t *new_node = malloc(sizeof(alias_t));
+	alias_t *last;
 
-	for (i = 0; src[i] != '\0'; i++)
-		dest[i] = src[i];
-	dest[i] = '\0';
-	return (dest);
-}
+	if (!new_node)
+		return (NULL);
 
-/**
- * _strcat - Concantenates two strings.
- * @dest: Pointer to destination string.
- * @src: Pointer to source string.
- *
- * Return: Pointer to destination string.
- */
-char *_strcat(char *dest, const char *src)
-{
-	char *destTemp;
-	const char *srcTemp;
-
-	destTemp = dest;
-	srcTemp =  src;
-
-	while (*destTemp != '\0')
-		destTemp++;
-
-	while (*srcTemp != '\0')
-		*destTemp++ = *srcTemp++;
-	*destTemp = '\0';
-	return (dest);
-}
-
-/**
- * _strncat - Concantenates two strings where n number
- *            of bytes are copied from source.
- * @dest: Pointer to destination string.
- * @src: Pointer to source string.
- * @n: n bytes to copy from src.
- *
- * Return: Pointer to destination string.
- */
-char *_strncat(char *dest, const char *src, size_t n)
-{
-	size_t dest_len = _strlen(dest);
-	size_t i;
-
-	for (i = 0; i < n && src[i] != '\0'; i++)
-		dest[dest_len + i] = src[i];
-	dest[dest_len + i] = '\0';
-
-	return (dest);
-}
-
-/**
- * token_len - Locates the delimiter index marking the end
- *             of the first token contained within a string.
- * @str: The string to be searched.
- * @delim: The delimiter character.
- *
- * Return: The delimiter index marking the end of
- *         the intitial token pointed to be str.
- */
-int token_len(char *str, char *delim)
-{
-	int index = 0, len = 0;
-
-	while (*(str + index) && *(str + index) != *delim)
+	new_node->next = NULL;
+	new_node->name = malloc(sizeof(char) * (_strlen(name) + 1));
+	if (!new_node->name)
 	{
-		len++;
-		index++;
+		free(new_node);
+		return (NULL);
 	}
+	new_node->value = value;
+	_strcpy(new_node->name, name);
 
-	return (len);
+	if (*head)
+	{
+		last = *head;
+		while (last->next != NULL)
+			last = last->next;
+		last->next = new_node;
+	}
+	else
+		*head = new_node;
+
+	return (new_node);
 }
 
 /**
- * token_count - Counts the number of delimited
- *                words contained within a string.
- * @str: The string to be searched.
- * @delim: The delimiter character.
+ * add_node_end - Adds a node to the end of a list_t linked list.
+ * @head: A pointer to the head of the list_t list.
+ * @dir: The directory path for the new node to contain.
  *
- * Return: The number of words contained within str.
+ * Return: If an error occurs - NULL.
+ *         Otherwise - a pointer to the new node.
  */
-int token_count(char *str, char *delim)
+list_t *add_node_end(list_t **head, char *dir)
 {
-	int index, tokens = 0, len = 0;
+	list_t *new_node = malloc(sizeof(list_t));
+	list_t *last;
 
-	for (index = 0; *(str + index); index++)
-		len++;
+	if (!new_node)
+		return (NULL);
 
-	for (index = 0; index < len; index++)
+	new_node->dir = dir;
+	new_node->next = NULL;
+
+	if (*head)
 	{
-		if (*(str + index) != *delim)
-		{
-			tokens++;
-			index += token_len(str + index, delim);
-		}
+		last = *head;
+		while (last->next != NULL)
+			last = last->next;
+		last->next = new_node;
 	}
+	else
+		*head = new_node;
 
-	return (tokens);
+	return (new_node);
+}
+
+/**
+ * free_alias_list - Frees a alias_t linked list.
+ * @head: THe head of the alias_t list.
+ */
+void free_alias_list(alias_t *head)
+{
+	alias_t *next;
+
+	while (head)
+	{
+		next = head->next;
+		free(head->name);
+		free(head->value);
+		free(head);
+		head = next;
+	}
+}
+
+/**
+ * free_list - Frees a list_t linked list.
+ * @head: The head of the list_t list.
+ */
+void free_list(list_t *head)
+{
+	list_t *next;
+
+	while (head)
+	{
+		next = head->next;
+		free(head->dir);
+		free(head);
+		head = next;
+	}
+}
+
+/**
+ * get_builtin - Matches a command with a corresponding
+ *               shellby builtin function.
+ * @command: The command to match.
+ *
+ * Return: A function pointer to the corresponding builtin.
+ */
+int (*get_builtin(char *command))(char **args, char **front)
+{
+	builtin_t funcs[] = {
+		{ "exit", shellby_exit },
+		{ "env", shellby_env },
+		{ "setenv", shellby_setenv },
+		{ "unsetenv", shellby_unsetenv },
+		{ "cd", shellby_cd },
+		{ "alias", shellby_alias },
+		{ "help", shellby_help },
+		{ NULL, NULL }
+	};
+	int i;
+
+	for (i = 0; funcs[i].name; i++)
+	{
+		if (_strcmp(funcs[i].name, command) == 0)
+			break;
+	}
+	return (funcs[i].f);
 }

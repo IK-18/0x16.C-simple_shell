@@ -1,12 +1,12 @@
 #include "shell.h"
 
 /**
- * err_env - error message for cfn_sh_env errors.
- * @args: array of arguments passed to the command.
+ * error_env - Creates an error message for shellby_env errors.
+ * @args: An array of arguments passed to the command.
  *
- * Return: error string.
+ * Return: The error string.
  */
-char *err_env(char **args)
+char *error_env(char **args)
 {
 	char *error, *hist_str;
 	int len;
@@ -36,12 +36,12 @@ char *err_env(char **args)
 }
 
 /**
- * err_1 - error message for cfn_sh_alias errors.
- * @args: array of arguments passed to the command.
+ * error_1 - Creates an error message for shellby_alias errors.
+ * @args: An array of arguments passed to the command.
  *
- * Return: error string.
+ * Return: The error string.
  */
-char *err_1(char **args)
+char *error_1(char **args)
 {
 	char *error;
 	int len;
@@ -59,10 +59,10 @@ char *err_1(char **args)
 }
 
 /**
- * error_2_exit - Create an error message for cfn_sh_exit errors.
- * @args: array of arguments passed to the command.
+ * error_2_exit - Creates an error message for shellby_exit errors.
+ * @args: An array of arguments passed to the command.
  *
- * Return: error string.
+ * Return: The error string.
  */
 char *error_2_exit(char **args)
 {
@@ -93,12 +93,12 @@ char *error_2_exit(char **args)
 }
 
 /**
- * err_2cd - Create error message for cfn_sh_cd errors.
- * @args: array of arguments passed to the command.
+ * error_2_cd - Creates an error message for shellby_cd errors.
+ * @args: An array of arguments passed to the command.
  *
- * Return: error string.
+ * Return: The error string.
  */
-char *err_2cd(char **args)
+char *error_2_cd(char **args)
 {
 	char *error, *hist_str;
 	int len;
@@ -132,12 +132,12 @@ char *err_2cd(char **args)
 }
 
 /**
- * err_2synt - Create an error message for syntax errors.
+ * error_2_syntax - Creates an error message for syntax errors.
  * @args: An array of arguments passed to the command.
  *
- * Return: error string.
+ * Return: The error string.
  */
-char *err_2synt(char **args)
+char *error_2_syntax(char **args)
 {
 	char *error, *hist_str;
 	int len;

@@ -1,319 +1,240 @@
 #include "shell.h"
 
 /**
- * handl_lne - Partitions a line read from standard input as needed.
- * @line: A pointer to a line read from standard input.
- * @read: The length of line.
+ * num_len - Counts the digit length of a number.
+ * @num: The number to measure.
  *
- * Description: Spaces are inserted to separate ";", "||", and "&&".
- *              Replaces "#" with '\0'.
+ * Return: The digit length.
  */
-void handl_lne(char **line, ssize_t read)
+int num_len(int num)
 {
-	char *old_line, *new_line;
-	char previous, current, next;
-	size_t i, j;
-	ssize_t new_len;
+	unsigned int num1;
+	int len = 1;
 
-	new_len = gt_nw_ln(*line);
-	if (new_len == read - 1)
-		return;
-	new_line = malloc(new_len + 1);
-	if (!new_line)
-		return;
-	j = 0;
-	old_line = *line;
-	for (i = 0; old_line[i]; i++)
+	if (num < 0)
 	{
-		current = old_line[i];
-		next = old_line[i + 1];
-		if (i != 0)
+		len++;
+		num1 = num * -1;
+	}
+	else
+	{
+		num1 = num;
+	}
+	while (num1 > 9)
+	{
+		len++;
+		num1 /= 10;
+	}
+
+	return (len);
+}
+
+/**
+ * _itoa - Converts an integer to a string.
+ * @num: The integer.
+ *
+ * Return: The converted string.
+ */
+char *_itoa(int num)
+{
+	char *buffer;
+	int len = num_len(num);
+	unsigned int num1;
+
+	buffer = malloc(sizeof(char) * (len + 1));
+	if (!buffer)
+		return (NULL);
+
+	buffer[len] = '\0';
+
+	if (num < 0)
+	{
+		num1 = num * -1;
+		buffer[0] = '-';
+	}
+	else
+	{
+		num1 = num;
+	}
+
+	len--;
+	do {
+		buffer[len] = (num1 % 10) + '0';
+		num1 /= 10;
+		len--;
+	} while (num1 > 0);
+
+	return (buffer);
+}
+
+
+/**
+ * create_error - Writes a custom error message to stderr.
+ * @args: An array of arguments.
+ * @err: The error value.
+ *
+ * Return: The error value.
+ */
+int create_error(char **args, int err)
+{
+	char *error;
+
+	switch (err)
+	{
+	case -1:
+		error = error_env(args);
+		break;
+	case 1:
+		error = error_1(args);
+		break;
+	case 2:
+		if (*(args[0]) == 'e')
+			error = error_2_exit(++args);
+		else if (args[0][0] == ';' || args[0][0] == '&' || args[0][0] == '|')
+			error = error_2_syntax(args);
+		else
+			error = error_2_cd(args);
+		break;
+	case 126:
+		error = error_126(args);
+		break;
+	case 127:
+		error = error_127(args);
+		break;
+	}
+	write(STDERR_FILENO, error, _strlen(error));
+
+	if (error)
+		free(error);
+	return (err);
+
+}
+
+/**
+ * shellby_env - Prints the current environment.
+ * @args: An array of arguments passed to the shell.
+ * @front: A double pointer to the beginning of args.
+ *
+ * Return: If an error occurs - -1.
+ *	   Otherwise - 0.
+ *
+ * Description: Prints one variable per line in the
+ *              format 'variable'='value'.
+ */
+int shellby_env(char **args, char __attribute__((__unused__)) **front)
+{
+	int index;
+	char nc = '\n';
+
+	if (!environ)
+		return (-1);
+
+	for (index = 0; environ[index]; index++)
+	{
+		write(STDOUT_FILENO, environ[index], _strlen(environ[index]));
+		write(STDOUT_FILENO, &nc, 1);
+	}
+
+	(void)args;
+	return (0);
+}
+
+/**
+ * shellby_setenv - Changes or adds an environmental variable to the PATH.
+ * @args: An array of arguments passed to the shell.
+ * @front: A double pointer to the beginning of args.
+ * Description: args[1] is the name of the new or existing PATH variable.
+ *              args[2] is the value to set the new or changed variable to.
+ *
+ * Return: If an error occurs - -1.
+ *         Otherwise - 0.
+ */
+int shellby_setenv(char **args, char __attribute__((__unused__)) **front)
+{
+	char **env_var = NULL, **new_environ, *new_value;
+	size_t size;
+	int index;
+
+	if (!args[0] || !args[1])
+		return (create_error(args, -1));
+
+	new_value = malloc(_strlen(args[0]) + 1 + _strlen(args[1]) + 1);
+	if (!new_value)
+		return (create_error(args, -1));
+	_strcpy(new_value, args[0]);
+	_strcat(new_value, "=");
+	_strcat(new_value, args[1]);
+
+	env_var = _getenv(args[0]);
+	if (env_var)
+	{
+		free(*env_var);
+		*env_var = new_value;
+		return (0);
+	}
+	for (size = 0; environ[size]; size++)
+		;
+
+	new_environ = malloc(sizeof(char *) * (size + 2));
+	if (!new_environ)
+	{
+		free(new_value);
+		return (create_error(args, -1));
+	}
+
+	for (index = 0; environ[index]; index++)
+		new_environ[index] = environ[index];
+
+	free(environ);
+	environ = new_environ;
+	environ[index] = new_value;
+	environ[index + 1] = NULL;
+
+	return (0);
+}
+
+/**
+ * shellby_unsetenv - Deletes an environmental variable from the PATH.
+ * @args: An array of arguments passed to the shell.
+ * @front: A double pointer to the beginning of args.
+ * Description: args[1] is the PATH variable to remove.
+ *
+ * Return: If an error occurs - -1.
+ *         Otherwise - 0.
+ */
+int shellby_unsetenv(char **args, char __attribute__((__unused__)) **front)
+{
+	char **env_var, **new_environ;
+	size_t size;
+	int index, index2;
+
+	if (!args[0])
+		return (create_error(args, -1));
+	env_var = _getenv(args[0]);
+	if (!env_var)
+		return (0);
+
+	for (size = 0; environ[size]; size++)
+		;
+
+	new_environ = malloc(sizeof(char *) * size);
+	if (!new_environ)
+		return (create_error(args, -1));
+
+	for (index = 0, index2 = 0; environ[index]; index++)
+	{
+		if (*env_var == environ[index])
 		{
-			previous = old_line[i - 1];
-			if (current == ';')
-			{
-				if (next == ';' && previous != ' ' && previous != ';')
-				{
-					new_line[j++] = ' ';
-					new_line[j++] = ';';
-					continue;
-				}
-				else if (previous == ';' && next != ' ')
-				{
-					new_line[j++] = ';';
-					new_line[j++] = ' ';
-					continue;
-				}
-				if (previous != ' ')
-					new_line[j++] = ' ';
-				new_line[j++] = ';';
-				if (next != ' ')
-					new_line[j++] = ' ';
-				continue;
-			}
-			else if (current == '&')
-			{
-				if (next == '&' && previous != ' ')
-					new_line[j++] = ' ';
-				else if (previous == '&' && next != ' ')
-				{
-					new_line[j++] = '&';
-					new_line[j++] = ' ';
-					continue;
-				}
-			}
-			else if (current == '|')
-			{
-				if (next == '|' && previous != ' ')
-					new_line[j++]  = ' ';
-				else if (previous == '|' && next != ' ')
-				{
-					new_line[j++] = '|';
-					new_line[j++] = ' ';
-					continue;
-				}
-			}
-		}
-		else if (current == ';')
-		{
-			if (i != 0 && old_line[i - 1] != ' ')
-				new_line[j++] = ' ';
-			new_line[j++] = ';';
-			if (next != ' ' && next != ';')
-				new_line[j++] = ' ';
+			free(*env_var);
 			continue;
 		}
-		new_line[j++] = old_line[i];
+		new_environ[index2] = environ[index];
+		index2++;
 	}
-	new_line[j] = '\0';
+	free(environ);
+	environ = new_environ;
+	environ[size - 1] = NULL;
 
-	free(*line);
-	*line = new_line;
+	return (0);
 }
 
-/**
- * gt_nw_ln - Gets the new length of a line partitioned as needed.by ";", "||", "&&&", or "#".
- * @line: The line to check.
- *
- * Return: The new length of the line.
- *
- * Description: Cuts short lines containing '#' comments with '\0'.
- */
-
-ssize_t gt_nw_ln(char *line)
-{
-	size_t i;
-	ssize_t new_len = 0;
-	char current, next;
-
-	for (i = 0; line[i]; i++)
-	{
-		current = line[i];
-		next = line[i + 1];
-		if (current == '#')
-		{
-			if (i == 0 || line[i - 1] == ' ')
-			{
-				line[i] = '\0';
-				break;
-			}
-		}
-		else if (i != 0)
-		{
-			if (current == ';')
-			{
-				if (next == ';' && line[i - 1] != ' ' && line[i - 1] != ';')
-				{
-					new_len += 2;
-					continue;
-				}
-				else if (line[i - 1] == ';' && next != ' ')
-				{
-					new_len += 2;
-					continue;
-				}
-				if (line[i - 1] != ' ')
-					new_len++;
-				if (next != ' ')
-					new_len++;
-			}
-			else
-				lgcl_ps(&line[i], &new_len);
-		}
-		else if (current == ';')
-		{
-			if (i != 0 && line[i - 1] != ' ')
-				new_len++;
-			if (next != ' ' && next != ';')
-				new_len++;
-		}
-		new_len++;
-	}
-	return (new_len);
-}
-/**
- * lgcl_ps - Checks logical operators "||" or "&&".
- * @line: A pointer to the character to check in the line.
- * @new_len: Pointer to new_len in gt_nw_ln function.
- */
-void lgcl_ps(char *line, ssize_t *new_len)
-{
-	char previous, current, next;
-
-	previous = *(line - 1);
-	current = *line;
-	next = *(line + 1);
-
-	if (current == '&')
-	{
-		if (next == '&' && previous != ' ')
-			(*new_len)++;
-		else if (previous == '&' && next != ' ')
-			(*new_len)++;
-	}
-	else if (current == '|')
-	{
-		if (next == '|' && previous != ' ')
-			(*new_len)++;
-		else if (previous == '|' && next != ' ')
-			(*new_len)++;
-	}
-}
-
-#include "shell.h"
-
-/**
- * _realloc - Reallocate a memory block with a new size. malloc and free.
- * @ptr: A pointer to the memory previously allocated.
- * @old_size: The size in bytes of the allocated space for ptr.
- * @new_size: The size in bytes for the new memory block.
- *
- * Return: condtional reallocated memory block.
- */
-void *_realloc(void *ptr, unsigned int old_size, unsigned int new_size)
-{
-	void *mem;
-	char *ptr_copy, *filler;
-	unsigned int index;
-
-	if (new_size == old_size)
-		return (ptr);
-
-	if (ptr == NULL)
-	{
-		mem = malloc(new_size);
-		if (mem == NULL)
-			return (NULL);
-
-		return (mem);
-	}
-
-	if (new_size == 0 && ptr != NULL)
-	{
-		free(ptr);
-		return (NULL);
-	}
-
-	ptr_copy = ptr;
-	mem = malloc(sizeof(*ptr_copy) * new_size);
-	if (mem == NULL)
-	{
-		free(ptr);
-		return (NULL);
-	}
-
-	filler = mem;
-
-	for (index = 0; index < old_size && index < new_size; index++)
-		filler[index] = *ptr_copy++;
-
-	free(ptr);
-	return (mem);
-}
-
-/**
- * assign_lineptr - Reassigns the lineptr variable for _getline.
- * @lineptr: A buffer to store an input string.
- * @n: The size of lineptr.
- * @buffer: The string to assign to lineptr.
- * @b: The size of buffer.
- */
-void assign_lineptr(char **lineptr, size_t *n, char *buffer, size_t b)
-{
-	if (*lineptr == NULL)
-	{
-		if (b > 120)
-			*n = b;
-		else
-			*n = 120;
-		*lineptr = buffer;
-	}
-	else if (*n < b)
-	{
-		if (b > 120)
-			*n = b;
-		else
-			*n = 120;
-		*lineptr = buffer;
-	}
-	else
-	{
-		_strcpy(*lineptr, buffer);
-		free(buffer);
-	}
-}
-
-/**
- * _getline - Reads input  stream.
- * @lineptr: store input buffer.
- * @n: size of lineptr.
- * @stream: stream to read from.
- *
- * Return: The number of bytes read.
- */
-ssize_t _getline(char **lineptr, size_t *n, FILE *stream)
-{
-	static ssize_t input;
-	ssize_t ret;
-	char c = 'x', *buffer;
-	int r;
-
-	if (input == 0)
-		fflush(stream);
-	else
-		return (-1);
-	input = 0;
-
-	buffer = malloc(sizeof(char) * 120);
-	if (!buffer)
-		return (-1);
-
-	while (c != '\n')
-	{
-		r = read(STDIN_FILENO, &c, 1);
-		if (r == -1 || (r == 0 && input == 0))
-		{
-			free(buffer);
-			return (-1);
-		}
-		if (r == 0 && input != 0)
-		{
-			input++;
-			break;
-		}
-
-		if (input >= 120)
-			buffer = _realloc(buffer, input, input + 1);
-
-		buffer[input] = c;
-		input++;
-	}
-	buffer[input] = '\0';
-
-	assign_lineptr(lineptr, n, buffer, input);
-
-	ret = input;
-	if (r != 0)
-		input = 0;
-	return (ret);
-}
