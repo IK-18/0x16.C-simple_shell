@@ -8,4 +8,4 @@ with indepth practical project based knowledge of low level programming in C
 ## Credits go to contributors below
 
         - **Chiluba Fredrick Narsh** [Github account](https://github.com/FredrickNarshChiluba)
-        - **xxxxxxxx** [Github account](https://github.com/xxxxxx)
+        - **Osaite Arigbe-Osula** [Github account](https://github.com/xxxxxx)
