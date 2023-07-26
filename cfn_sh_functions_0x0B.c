@@ -8,7 +8,7 @@
  */
 int _strlen(const char *s)
 {
-	int length = 0;
+	int length;
 
 	if (!s)
 		return (length);
@@ -27,10 +27,13 @@ int _strlen(const char *s)
  */
 char *_strcpy(char *dest, const char *src)
 {
-	size_t i;
+	size_t i = 0;
 
-	for (i = 0; src[i] != '\0'; i++)
+	while (src[i] != '\0')
+	{
 		dest[i] = src[i];
+		i++;
+	}
 	dest[i] = '\0';
 	return (dest);
 }
@@ -48,7 +51,7 @@ char *_strcat(char *dest, const char *src)
 	const char *srcTemp;
 
 	destTemp = dest;
-	srcTemp =  src;
+	srcTemp = src;
 
 	while (*destTemp != '\0')
 		destTemp++;
