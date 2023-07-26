@@ -58,7 +58,8 @@ char *_itoa(int num)
 	}
 
 	len--;
-	do {
+	do
+	{
 		buffer[len] = (num1 % 10) + '0';
 		num1 /= 10;
 		len--;
@@ -66,7 +67,6 @@ char *_itoa(int num)
 
 	return (buffer);
 }
-
 
 /**
  * create_error - Writes a custom error message to stderr.
@@ -107,7 +107,6 @@ int create_error(char **args, int err)
 	if (error)
 		free(error);
 	return (err);
-
 }
 
 /**
@@ -121,7 +120,7 @@ int create_error(char **args, int err)
  * Description: Prints one variable per line in the
  *              format 'variable'='value'.
  */
-int shellby_env(char **args, char __attribute__((__unused__)) **front)
+int shellby_env(char **args, char __attribute__((__unused__)) * *front)
 {
 	int index;
 	char nc = '\n';
@@ -149,7 +148,7 @@ int shellby_env(char **args, char __attribute__((__unused__)) **front)
  * Return: If an error occurs - -1.
  *         Otherwise - 0.
  */
-int shellby_setenv(char **args, char __attribute__((__unused__)) **front)
+int shellby_setenv(char **args, char __attribute__((__unused__)) * *front)
 {
 	char **env_var = NULL, **new_environ, *new_value;
 	size_t size;
@@ -202,10 +201,10 @@ int shellby_setenv(char **args, char __attribute__((__unused__)) **front)
  * Return: If an error occurs - -1.
  *         Otherwise - 0.
  */
-int shellby_unsetenv(char **args, char __attribute__((__unused__)) **front)
+int shellby_unsetenv(char **args, char __attribute__((__unused__)) * *front)
 {
 	char **env_var, **new_environ;
-	size_t size;
+	size_t size = 0;
 	int index, index2;
 
 	if (!args[0])
@@ -214,8 +213,8 @@ int shellby_unsetenv(char **args, char __attribute__((__unused__)) **front)
 	if (!env_var)
 		return (0);
 
-	for (size = 0; environ[size]; size++)
-		;
+	while (environ[size])
+		size++;
 
 	new_environ = malloc(sizeof(char *) * size);
 	if (!new_environ)
@@ -237,4 +236,3 @@ int shellby_unsetenv(char **args, char __attribute__((__unused__)) **front)
 
 	return (0);
 }
-

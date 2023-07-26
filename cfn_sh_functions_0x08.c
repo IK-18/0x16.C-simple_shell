@@ -77,11 +77,11 @@ char *error_127(char **args)
 char **_copyenv(void)
 {
 	char **new_environ;
-	size_t size;
+	size_t size = 0;
 	int index;
 
-	for (size = 0; environ[size]; size++)
-		;
+	while (environ[size])
+		size++;
 
 	new_environ = malloc(sizeof(char *) * (size + 1));
 	if (!new_environ)
