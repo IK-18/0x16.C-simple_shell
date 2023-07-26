@@ -1,12 +1,8 @@
 #include "shell.h"
-int (*get_builtin(char *command))(char **args, char **front);
-int shellby_exit(char **args, char **front);
-int shellby_cd(char **args, char __attribute__((__unused__)) **front);
-int shellby_help(char **args, char __attribute__((__unused__)) **front);
 
 /**
  * get_builtin - Matches a command with a corresponding
- *               shellby builtin function.
+ *               cfn_sh builtin function.
  * @command: The command to match.
  *
  * Return: A function pointer to the corresponding builtin.
@@ -14,13 +10,13 @@ int shellby_help(char **args, char __attribute__((__unused__)) **front);
 int (*get_builtin(char *command))(char **args, char **front)
 {
 	builtin_t funcs[] = {
-		{ "exit", shellby_exit },
-		{ "env", shellby_env },
-		{ "setenv", shellby_setenv },
-		{ "unsetenv", shellby_unsetenv },
-		{ "cd", shellby_cd },
-		{ "alias", shellby_alias },
-		{ "help", shellby_help },
+		{ "exit", cfn_sh_exit },
+		{ "env", cfn_sh_env },
+		{ "setenv", cfn_sh_setenv },
+		{ "unsetenv", cfn_sh_unsetenv },
+		{ "cd", cfn_sh_cd },
+		{ "alias", cfn_sh_alias },
+		{ "help", cfn_sh_help },
 		{ NULL, NULL }
 	};
 	int i;
@@ -34,8 +30,8 @@ int (*get_builtin(char *command))(char **args, char **front)
 }
 
 /**
- * shellby_exit - Causes normal process termination
- *                for the shellby shell.
+ * cfn_sh_exit - Causes normal process termination
+ *                for the cfn_sh shell.
  * @args: An array of arguments containing the exit value.
  * @front: A double pointer to the beginning of args.
  *
@@ -45,7 +41,7 @@ int (*get_builtin(char *command))(char **args, char **front)
  *
  * Description: Upon returning -3, the program exits back in the main function.
  */
-int shellby_exit(char **args, char **front)
+int cfn_sh_exit(char **args, char **front)
 {
 	int i, len_of_int = 10;
 	unsigned int num = 0, max = 1 << (sizeof(int) * 8 - 1);
@@ -62,7 +58,7 @@ int shellby_exit(char **args, char **front)
 			if (i <= len_of_int && args[0][i] >= '0' && args[0][i] <= '9')
 				num = (num * 10) + (args[0][i] - '0');
 			else
-				return (create_error(--args, 2));
+				return (create_err(--args, 2));
 		}
 	}
 	else
@@ -70,16 +66,16 @@ int shellby_exit(char **args, char **front)
 		return (-3);
 	}
 	if (num > max - 1)
-		return (create_error(--args, 2));
+		return (create_err(--args, 2));
 	args -= 1;
 	free_args(args, front);
 	free_env();
-	free_alias_list(aliases);
+	als_free_list(aliases);
 	exit(num);
 }
 
 /**
- * shellby_cd - Changes the current directory of the shellby process.
+ * cfn_sh_cd - Changes the current directory of the cfn_sh process.
  * @args: An array of arguments.
  * @front: A double pointer to the beginning of args.
  *
@@ -87,7 +83,7 @@ int shellby_exit(char **args, char **front)
  *         If an error occurs - -1.
  *         Otherwise - 0.
  */
-int shellby_cd(char **args, char __attribute__((__unused__)) **front)
+int cfn_sh_cd(char **args, char __attribute__((__unused__)) **front)
 {
 	char **dir_info, *new_line = "\n";
 	char *oldpwd = NULL, *pwd = NULL;
@@ -110,7 +106,7 @@ int shellby_cd(char **args, char __attribute__((__unused__)) **front)
 			else
 			{
 				free(oldpwd);
-				return (create_error(args, 2));
+				return (create_err(args, 2));
 			}
 		}
 		else
@@ -121,7 +117,7 @@ int shellby_cd(char **args, char __attribute__((__unused__)) **front)
 			else
 			{
 				free(oldpwd);
-				return (create_error(args, 2));
+				return (create_err(args, 2));
 			}
 		}
 	}
@@ -141,12 +137,12 @@ int shellby_cd(char **args, char __attribute__((__unused__)) **front)
 
 	dir_info[0] = "OLDPWD";
 	dir_info[1] = oldpwd;
-	if (shellby_setenv(dir_info, dir_info) == -1)
+	if (cfn_sh_setenv(dir_info, dir_info) == -1)
 		return (-1);
 
 	dir_info[0] = "PWD";
 	dir_info[1] = pwd;
-	if (shellby_setenv(dir_info, dir_info) == -1)
+	if (cfn_sh_setenv(dir_info, dir_info) == -1)
 		return (-1);
 	if (args[0] && args[0][0] == '-' && args[0][1] != '-')
 	{
@@ -160,31 +156,31 @@ int shellby_cd(char **args, char __attribute__((__unused__)) **front)
 }
 
 /**
- * shellby_help - Displays information about shellby builtin commands.
+ * cfn_sh_help - Displays information about cfn_sh builtin commands.
  * @args: An array of arguments.
  * @front: A pointer to the beginning of args.
  *
  * Return: If an error occurs - -1.
  *         Otherwise - 0.
  */
-int shellby_help(char **args, char __attribute__((__unused__)) **front)
+int cfn_sh_help(char **args, char __attribute__((__unused__)) **front)
 {
 	if (!args[0])
-		help_all();
+		all_help();
 	else if (_strcmp(args[0], "alias") == 0)
-		help_alias();
+		als_help();
 	else if (_strcmp(args[0], "cd") == 0)
-		help_cd();
+		c_d_help();
 	else if (_strcmp(args[0], "exit") == 0)
-		help_exit();
+		exit_help();
 	else if (_strcmp(args[0], "env") == 0)
-		help_env();
+		env_help();
 	else if (_strcmp(args[0], "setenv") == 0)
-		help_setenv();
+		help_set_env();
 	else if (_strcmp(args[0], "unsetenv") == 0)
-		help_unsetenv();
+		help_unset_env();
 	else if (_strcmp(args[0], "help") == 0)
-		help_help();
+		help_h();
 	else
 		write(STDERR_FILENO, name, _strlen(name));
 

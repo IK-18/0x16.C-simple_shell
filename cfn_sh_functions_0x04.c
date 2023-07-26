@@ -1,14 +1,10 @@
 #include "shell.h"
 
-char *fill_path_dir(char *path);
-list_t *get_path_dir(char *path);
-
 /**
- * get_location - Locates a command in the PATH.
- * @command: The command to locate.
+ * get_location - Locates command in PATH.
+ * @command: command to locate.
  *
- * Return: If an error occurs or the command cannot be located - NULL.
- *         Otherwise - the full pathname of the command.
+ * Return: If an error  - NULL.otherwiseise - the full pathname of the command.
  */
 char *get_location(char *command)
 {
@@ -49,12 +45,10 @@ char *get_location(char *command)
 }
 
 /**
- * fill_path_dir - Copies path but also replaces leading/sandwiched/trailing
- *		   colons (:) with current working directory.
- * @path: The colon-separated list of directories.
+ * fill_path_dir - Copys path but with any leading/sandwiched/trailing path.
+ * @path: separated list of directories.
  *
- * Return: A copy of path with any leading/sandwiched/trailing colons replaced
- *	   with the current working directory.
+ * Return: A copy of path.
  */
 char *fill_path_dir(char *path)
 {
@@ -104,8 +98,7 @@ char *fill_path_dir(char *path)
 }
 
 /**
- * get_path_dir - Tokenizes a colon-separated list of
- *                directories into a list_s linked list.
+ * get_path_dir - Tokenizes a colon-separated list.
  * @path: The colon-separated list of directories.
  *
  * Return: A pointer to the initialized linked list.
@@ -126,7 +119,7 @@ list_t *get_path_dir(char *path)
 
 	for (index = 0; dirs[index]; index++)
 	{
-		if (add_node_end(&head, dirs[index]) == NULL)
+		if (add_on_node_end(&head, dirs[index]) == NULL)
 		{
 			free_list(head);
 			free(dirs);
@@ -137,4 +130,74 @@ list_t *get_path_dir(char *path)
 	free(dirs);
 
 	return (head);
+}
+
+/**
+ * _copyenv - Creates a copy of the environment.
+ *
+ * Return: If an error occurs - NULL.
+ *         O/w - a double pointer to the new copy.
+ */
+char **_copyenv(void)
+{
+	char **new_environ;
+	size_t size;
+	int index;
+
+	for (size = 0; environ[size]; size++)
+		;
+
+	new_environ = malloc(sizeof(char *) * (size + 1));
+	if (!new_environ)
+		return (NULL);
+
+	for (index = 0; environ[index]; index++)
+	{
+		new_environ[index] = malloc(_strlen(environ[index]) + 1);
+
+		if (!new_environ[index])
+		{
+			for (index--; index >= 0; index--)
+				free(new_environ[index]);
+			free(new_environ);
+			return (NULL);
+		}
+		_strcpy(new_environ[index], environ[index]);
+	}
+	new_environ[index] = NULL;
+
+	return (new_environ);
+}
+
+/**
+ * free_env - Frees the the environment copy.
+ */
+void free_env(void)
+{
+	int index;
+
+	for (index = 0; environ[index]; index++)
+		free(environ[index]);
+	free(environ);
+}
+
+/**
+ * _getenv - Gets an environmental variable from the PATH.
+ * @var: The name of the environmental variable to get.
+ *
+ * Return: If the environmental variable does not exist - NULL.
+ *         Otherwise - a pointer to the environmental variable.
+ */
+char **_getenv(const char *var)
+{
+	int index, len;
+
+	len = _strlen(var);
+	for (index = 0; environ[index]; index++)
+	{
+		if (_strncmp(var, environ[index], len) == 0)
+			return (&environ[index]);
+	}
+
+	return (NULL);
 }

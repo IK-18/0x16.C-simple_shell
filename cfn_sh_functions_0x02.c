@@ -1,27 +1,5 @@
 #include "shell.h"
 
-int _strlen(const char *s);
-char *_strcpy(char *dest, const char *src);
-char *_strcat(char *dest, const char *src);
-char *_strncat(char *dest, const char *src, size_t n);
-
-/**
- * _strlen - Returns the length of a string.
- * @s: A pointer to the characters string.
- *
- * Return: The length of the character string.
- */
-int _strlen(const char *s)
-{
-	int length = 0;
-
-	if (!s)
-		return (length);
-	for (length = 0; s[length]; length++)
-		;
-	return (length);
-}
-
 /**
  * _strcpy - Copies the string pointed to by src, including the
  *           terminating null byte, to the buffer pointed by des.
@@ -83,4 +61,53 @@ char *_strncat(char *dest, const char *src, size_t n)
 	dest[dest_len + i] = '\0';
 
 	return (dest);
+}
+
+/**
+ * token_len - Locates the delimiter index marking the end
+ *             of the first token contained within a string.
+ * @str: The string to be searched.
+ * @delim: The delimiter character.
+ *
+ * Return: The delimiter index marking the end of
+ *         the intitial token pointed to be str.
+ */
+int token_len(char *str, char *delim)
+{
+	int index = 0, len = 0;
+
+	while (*(str + index) && *(str + index) != *delim)
+	{
+		len++;
+		index++;
+	}
+
+	return (len);
+}
+
+/**
+ * token_count - Counts the number of delimited
+ *                words contained within a string.
+ * @str: The string to be searched.
+ * @delim: The delimiter character.
+ *
+ * Return: The number of words contained within str.
+ */
+int token_count(char *str, char *delim)
+{
+	int index, tokens = 0, len = 0;
+
+	for (index = 0; *(str + index); index++)
+		len++;
+
+	for (index = 0; index < len; index++)
+	{
+		if (*(str + index) != *delim)
+		{
+			tokens++;
+			index += token_len(str + index, delim);
+		}
+	}
+
+	return (tokens);
 }

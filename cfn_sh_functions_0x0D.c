@@ -1,11 +1,7 @@
 #include "shell.h"
 
-int shellby_alias(char **args, char __attribute__((__unused__)) **front);
-void set_alias(char *var_name, char *value);
-void print_alias(alias_t *alias);
-
 /**
- * shellby_alias - Builtin command that either prints all aliases, specific
+ * cfn_sh_alias - Builtin command that either prints all aliases, specific
  * aliases, or sets an alias.
  * @args: An array of arguments.
  * @front: A double pointer to the beginning of args.
@@ -13,7 +9,7 @@ void print_alias(alias_t *alias);
  * Return: If an error occurs - -1.
  *         Otherwise - 0.
  */
-int shellby_alias(char **args, char __attribute__((__unused__)) **front)
+int cfn_sh_alias(char **args, char __attribute__((__unused__)) **front)
 {
 	alias_t *temp = aliases;
 	int i, ret = 0;
@@ -23,7 +19,7 @@ int shellby_alias(char **args, char __attribute__((__unused__)) **front)
 	{
 		while (temp)
 		{
-			print_alias(temp);
+			arg_run(temp);
 			temp = temp->next;
 		}
 		return (ret);
@@ -38,27 +34,27 @@ int shellby_alias(char **args, char __attribute__((__unused__)) **front)
 			{
 				if (_strcmp(args[i], temp->name) == 0)
 				{
-					print_alias(temp);
+					arg_run(temp);
 					break;
 				}
 				temp = temp->next;
 			}
 			if (!temp)
-				ret = create_error(args + i, 1);
+				ret = create_err(args + i, 1);
 		}
 		else
-			set_alias(args[i], value);
+			als_set(args[i], value);
 	}
 	return (ret);
 }
 
 /**
- * set_alias - Will either set an existing alias 'name' with a new value,
+ * als_set - Will either set an existing alias 'name' with a new value,
  * 'value' or creates a new alias with 'name' and 'value'.
  * @var_name: Name of the alias.
  * @value: Value of the alias. First character is a '='.
  */
-void set_alias(char *var_name, char *value)
+void als_set(char *var_name, char *value)
 {
 	alias_t *temp = aliases;
 	int len, j, k;
@@ -87,14 +83,14 @@ void set_alias(char *var_name, char *value)
 		temp = temp->next;
 	}
 	if (!temp)
-		add_alias_end(&aliases, var_name, new_value);
+		als_end_add(&aliases, var_name, new_value);
 }
 
 /**
- * print_alias - Prints the alias in the format name='value'.
+ * arg_run - Prints the alias in the format name='value'.
  * @alias: Pointer to an alias.
  */
-void print_alias(alias_t *alias)
+void arg_run(alias_t *alias)
 {
 	char *alias_string;
 	int len = _strlen(alias->name) + _strlen(alias->value) + 4;

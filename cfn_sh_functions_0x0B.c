@@ -1,17 +1,11 @@
 #include "shell.h"
 
-void help_all(void);
-void help_alias(void);
-void help_cd(void);
-void help_exit(void);
-void help_help(void);
-
 /**
- * help_all - Displays all possible builtin shellby commands.
+ * all_help - Displays all possible builtin cfn_sh commands.
  */
-void help_all(void)
+void all_help(void)
 {
-	char *msg = "Shellby\nThese shell commands are defined internally.\n";
+	char *msg = "cfn_sh\nThese shell commands are defined internally.\n";
 
 	write(STDOUT_FILENO, msg, _strlen(msg));
 	msg = "Type 'help' to see this list.\nType 'help name' to find ";
@@ -29,9 +23,9 @@ void help_all(void)
 }
 
 /**
- * help_alias - Displays information on the shellby builtin command 'alias'.
+ * als_help - Displays information on the cfn_sh builtin command 'alias'.
  */
-void help_alias(void)
+void als_help(void)
 {
 	char *msg = "alias: alias [NAME[='VALUE'] ...]\n\tHandles aliases.\n";
 
@@ -51,9 +45,9 @@ void help_alias(void)
 }
 
 /**
- * help_cd - Displays information on the shellby builtin command 'cd'.
+ * c_d_help - Displays information on the cfn_sh builtin command 'cd'.
  */
-void help_cd(void)
+void c_d_help(void)
 {
 	char *msg = "cd: cd [DIRECTORY]\n\tChanges the current directory of the";
 
@@ -71,9 +65,9 @@ void help_cd(void)
 }
 
 /**
- * help_exit - Displays information on the shellby builtin command 'exit'.
+ * exit_help - Displays information on the cfn_sh builtin command 'exit'.
  */
-void help_exit(void)
+void exit_help(void)
 {
 	char *msg = "exit: exit [STATUS]\n\tExits the shell.\n\n\tThe ";
 
@@ -87,11 +81,11 @@ void help_exit(void)
 }
 
 /**
- * help_help - Displays information on the shellby builtin command 'help'.
+ * help_h - Displays information on the cfn_sh builtin command 'help'.
  */
-void help_help(void)
+void help_h(void)
 {
-	char *msg = "help: help\n\tSee all possible Shellby builtin commands.\n";
+	char *msg = "help: help\n\tSee all possible cfn_sh builtin commands.\n";
 
 	write(STDOUT_FILENO, msg, _strlen(msg));
 	msg = "\n      help [BUILTIN NAME]\n\tSee specific information on each ";
