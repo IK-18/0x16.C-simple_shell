@@ -2,8 +2,8 @@
 
 set -e
 
-SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOTDIR="$(cd "${SCRIPTDIR}/.." && pwd)"
+SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}"\0x16.C-simple_shell)" && pwd)"
+ROOTDIR="$(cd "${SCRIPTDIR}" && pwd)"
 
 set -x
 
