@@ -204,7 +204,7 @@ int shellby_setenv(char **args, char __attribute__((__unused__)) * *front)
 int shellby_unsetenv(char **args, char __attribute__((__unused__)) * *front)
 {
 	char **env_var, **new_environ;
-	size_t size = 0;
+	size_t size;
 	int index, index2;
 
 	if (!args[0])
@@ -213,8 +213,8 @@ int shellby_unsetenv(char **args, char __attribute__((__unused__)) * *front)
 	if (!env_var)
 		return (0);
 
-	while (environ[size])
-		size++;
+	for (size = 0; environ[size]; size++)
+		;
 
 	new_environ = malloc(sizeof(char *) * size);
 	if (!new_environ)

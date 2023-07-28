@@ -138,7 +138,7 @@ int run_args(char **args, char **front, int *exe_ret)
  */
 int handle_args(int *exe_ret)
 {
-	int ret = 0, index = 0;
+	int ret = 0, index;
 	char **args, *line = NULL, **front;
 
 	line = get_args(line, exe_ret);
@@ -157,7 +157,7 @@ int handle_args(int *exe_ret)
 	}
 	front = args;
 
-	while (args[index])
+	for (index = 0; args[index]; index++)
 	{
 		if (_strncmp(args[index], ";", 1) == 0)
 		{
@@ -167,7 +167,6 @@ int handle_args(int *exe_ret)
 			args = &args[++index];
 			index = 0;
 		}
-		index++;
 	}
 	if (args)
 		ret = call_args(args, front, exe_ret);
